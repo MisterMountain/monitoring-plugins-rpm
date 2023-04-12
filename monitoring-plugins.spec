@@ -31,11 +31,10 @@ BuildRequires:  uriparser-devel
 BuildRequires: libdbi-devel
 %endif
 
-#### Wegen qstat/check_game (pseudo code)
-#%%if 0%{?EL VERSION} == 8
-#BuildRequires:  qstat
-#%%endif
-####
+%if 0%{?rhel} != 8
+BuildRequires:  qstat
+%endif
+
 
 Recommends:     net-snmp
 Recommends:     net-snmp-utils
@@ -55,9 +54,6 @@ These are the monitoring plugins from the official monitoring plugins team
     --prefix=%{_prefix} \
     --libexecdir=%{plugindir} \
     --with-perl=/usr/bin/perl
-    --with-openssl=yes \
-    --with-ping-command="/usr/bin/ping -4 -n -U -w %d -c %d %s" \
-    --with-ping6-command="/usr/bin/ping -6 -n -U -w %d -c %d %s"
 %make_build
 
 %install
