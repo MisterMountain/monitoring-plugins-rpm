@@ -31,11 +31,10 @@ BuildRequires:  uriparser-devel
 BuildRequires: libdbi-devel
 %endif
 
-#### Wegen qstat/check_game (pseudo code)
-#%%if 0%{?EL VERSION} == 8
-#BuildRequires:  qstat
-#%%endif
-####
+%if 0%{?rhel} != 8
+BuildRequires:  qstat
+%endif
+
 
 Recommends:     net-snmp
 Recommends:     net-snmp-utils
