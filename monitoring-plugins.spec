@@ -17,7 +17,6 @@ BuildRequires:  automake
 BuildRequires:  bind-utils
 BuildRequires:  fping
 BuildRequires:  libcurl-devel
-BuildRequires:  libdbi-devel
 BuildRequires:  mysql-devel
 BuildRequires:  net-snmp
 BuildRequires:  net-snmp-utils
@@ -27,6 +26,10 @@ BuildRequires:  postgresql-devel
 BuildRequires:  radcli-devel
 BuildRequires:  samba-client
 BuildRequires:  uriparser-devel
+
+%if 0%{?rhel} == 8
+BuildRequires: libdbi-devel
+%endif
 
 #### Wegen qstat/check_game (pseudo code)
 #%%if 0%{?EL VERSION} == 8
