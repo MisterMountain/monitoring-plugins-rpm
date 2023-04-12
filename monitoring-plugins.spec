@@ -10,38 +10,96 @@ License:        GPL3
 URL:            https://github.com/monitoring-plugins/monitoring-plugins
 Source0:        https://github.com/monitoring-plugins/monitoring-plugins/archive/v%{version}.tar.gz
 
+
+
+##### BUILD REQUIREMENTS #####
+
+### General build requirements
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  automake
 
-BuildRequires:  bind-utils
-BuildRequires:  fping
+### Check Plugin specific build requirements
+# check_curl
 BuildRequires:  libcurl-devel
-BuildRequires:  libdbi-devel
-BuildRequires:  mysql-devel
-BuildRequires:  net-snmp
-BuildRequires:  net-snmp-utils
-BuildRequires:  openldap-devel
 BuildRequires:  openssl-devel
-BuildRequires:  postgresql-devel
-BuildRequires:  radcli-devel
-BuildRequires:  samba-client
 BuildRequires:  uriparser-devel
 
-#### Wegen qstat/check_game (pseudo code)
-#%%if 0%{?EL VERSION} == 8
-#BuildRequires:  qstat
-#%%endif
-####
+# check_dbi
+BuildRequires:  libdbi-devel
 
+# check_dig check_dns
+BuildRequires: bind-utils
+
+# check_disk_smb
+BuildRequires: samba-client
+
+# check_fping
+BuildRequires: fping
+
+# check_hpjd
+BuildRequires: net-snmp-utils
+
+# check_ldap check_ldaps
+BuildRequires: openldap-devel
+
+# check_mysql check_mysql_query
+BuildRequires: mysql-devel
+
+# check_pgsql
+BuildRequires: postgresql-devel
+
+# check_radius
+BuildRequires: radcli-devel
+
+
+
+##### RUNTIME REQUIREMENTS / RECOMMENDATIONS #####
+
+# check_dig check_dns
+Recommends: bind-utils
+
+# check_disk_smb
+Recommends: samba-client
+
+# check_ifoperstatus
+Recommends: perl(Net::SNMP)
+
+# check_snmp
+Recommends: net-snmp
+#Requires:
 Recommends:     net-snmp
 Recommends:     net-snmp-utils
 Recommends:     perl(Net::SNMP)
 Recommends:     samba-client
-Recommends:     bind-utils
+
 
 %description
 These are the monitoring plugins from the official monitoring plugins team
+
+##### Sub Packages #####
+# All
+%package all
+
+Summary: Nagios Plugins - All plugins
+Requires: monitoring-plugins-apt
+%description all
+This package provides all Nagios plugins.
+
+
+# check_apt
+%package apt
+
+Summary: Nagios Plugin - check_apt
+Requires: monitoring-plugins = %{version}-%{release}
+%description apt
+Provides check_apt support for Nagios.
+
+
+
+#%%description
+#These are the monitoring plugins from the official monitoring plugins team
+
 
 %prep
 %autosetup
@@ -51,7 +109,6 @@ These are the monitoring plugins from the official monitoring plugins team
 ./configure \
     --prefix=%{_prefix} \
     --libexecdir=%{plugindir} \
-    --with-perl=/usr/bin/perl
     --with-openssl=yes \
     --with-ping-command="/usr/bin/ping -4 -n -U -w %d -c %d %s" \
     --with-ping6-command="/usr/bin/ping -6 -n -U -w %d -c %d %s"
@@ -61,13 +118,16 @@ These are the monitoring plugins from the official monitoring plugins team
 %make_install
 %{__make} install-root DESTDIR=%{?buildroot} INSTALL="%{__install} -p"
 
-
-%clean
-rm -rf %{_buildrootdir}/*
+#%%clean
+#rm -rf %{_buildrootdir}/*
 
 %files
-%{plugindir}/*
+#%%{plugindir}/*
 /usr/share/locale/*/LC_MESSAGES/monitoring-plugins.mo
+
+
+%files apt
+%{plugindir}/check_apt
 
 #%%doc
 
