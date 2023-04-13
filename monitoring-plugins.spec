@@ -16,7 +16,9 @@ Requires: %{name}-breeze
 Requires: %{name}-by_ssh
 Requires: %{name}-cluster
 Requires: %{name}-curl
+%if 0%{?rhel} != 9
 Requires: %{name}-dbi
+%endif
 Requires: %{name}-dhcp
 Requires: %{name}-dig
 Requires: %{name}-disk
@@ -26,6 +28,9 @@ Requires: %{name}-dummy
 Requires: %{name}-file_age
 Requires: %{name}-flexlm
 Requires: %{name}-fping
+%if 0%{?rhel} != 8
+Requires: %{name}-game
+%endif
 Requires: %{name}-hpjd
 Requires: %{name}-http
 Requires: %{name}-icmp
@@ -83,7 +88,9 @@ BuildRequires: openssl-devel
 BuildRequires: uriparser-devel
 
 # check_dbi
+%if 0%{?rhel} != 9
 BuildRequires: libdbi-devel
+%endif
 
 # check_dig check_dns
 BuildRequires: bind-utils
@@ -93,6 +100,11 @@ BuildRequires: samba-client
 
 # check_fping
 BuildRequires: fping
+
+# check_game
+%if 0%{?rhel} != 8
+BuildRequires: qstat
+%endif
 
 # check_hpjd
 BuildRequires: net-snmp-utils
@@ -246,6 +258,7 @@ Provides check_curl of the Monitoring Plugins.
 
 
 # check_dbi
+%if 0%{?rhel} != 9
 %package dbi
 Summary: Monitoring Plugins - check_dbi
 Requires: %{name}-common = %{version}-%{release}
@@ -255,6 +268,7 @@ Provides check_dbi of the Monitoring Plugins.
 
 %files dbi
 %{plugindir}/check_dbi
+%endif
 
 
 
@@ -369,12 +383,29 @@ Provides check_flexlm of the Monitoring Plugins.
 %package fping
 Summary:    Monitoring Plugins - check_fping
 Requires:   %{name}-common = %{version}-%{release}
+Requires:   fping
 
 %description fping
 Provides check_fping of the Monitoring Plugins.
 
 %files fping
 %{plugindir}/check_fping
+
+
+
+# check_game
+%if 0%{?rhel} != 8
+%package game
+Summary:    Monitoring Plugins - check_fping
+Requires:   %{name}-common = %{version}-%{release}
+Requires:   qstat
+
+%description game
+Provides check_game of the Monitoring Plugins.
+
+%files game
+%{plugindir}/check_game
+%endif
 
 
 
