@@ -1,0 +1,110 @@
+---
+- name: Install Packaging VM
+  hosts: packaging
+  tasks:
+  - name: enable epel
+    become: yes
+    yum:
+      name: 
+      - epel-release
+      state: present
+  - name: enable codeready builder for EL9
+    become: yes
+    shell: 
+      cmd: dnf config-manager --set-enabled crb
+    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "9"
+  - name: enable powertools for EL8
+    become: yes
+    shell: 
+      cmd: dnf config-manager --set-enabled powertools
+    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "8"
+  - name: install qstat on EL9
+    become: yes
+    yum:
+      name: 
+      - qstat
+      state: present
+    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "9"
+  - name: install qstat on EL8 using the Fedora28 package
+    become: yes
+    yum:
+      name: 
+      - https://kojipkgs.fedoraproject.org//vol/fedora_koji_archive02/packages/qstat/2.15/6.20150619gita60436.fc28/{{ ansible_architecture }}/qstat-2.15-6.20150619gita60436.fc28.{{ ansible_architecture }}.rpm
+      state: present
+    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "8"
+  - name: install libdbi-devel on EL8
+    become: yes
+    yum:
+      name: 
+      - libdbi-devel
+      state: present
+    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "8"
+  - name: Install necessary packages
+    become: yes
+    yum:
+      name:
+      - rpmdevtools
+      - fping
+      - bind-utils
+      - openssl-devel
+      - perl-ExtUtils-MakeMaker
+      - perl-Module-Build
+      - samba-client
+      - radcli-devel
+      - uriparser-devel
+      - net-snmp
+      - net-snmp-utils
+      - openldap-devel
+      - mysql-devel
+      - libcurl-devel
+      - postgresql-devel
+      state: present
+  - name: Install yum group development tools
+    become: yes
+    yum:
+      name: "@Development tools"
+      state: present
+  - name: Create rpmdev directory like with rpmdev-setuptree and give rights to ansible_user
+    file:
+      path: /home/{{ ansible_user }}/rpmbuild/{{ item }}
+      state: directory
+      owner: "{{ ansible_user }}"
+    with_items:
+      - BUILD
+      - RPMS
+      - SOURCES
+      - SPECS
+      - SRPMS
+  - name: download v.2.3.3 release of monitoring-plugins and give rights to ansible_user
+    become: yes
+    get_url: 
+      url: https://github.com/monitoring-plugins/monitoring-plugins/archive/refs/tags/v2.3.3.tar.gz
+      dest: /home/{{ ansible_user }}/rpmbuild/SOURCES/
+      owner: "{{ ansible_user }}"
+  - name: rename archive to v2.3.3.tar.gz
+    copy: 
+      src: /home/{{ ansible_user }}/rpmbuild/SOURCES/monitoring-plugins-2.3.3.tar.gz
+      dest: /home/{{ ansible_user }}/rpmbuild/SOURCES/v2.3.3.tar.gz
+      remote_src: yes
+      owner: "{{ ansible_user }}"
+  - name: get specfile from git 
+    become: yes
+    get_url: 
+      url: https://raw.githubusercontent.com/MisterMountain/monitoring-plugins-rpm/removed_configure_options/monitoring-plugins.spec
+      dest: /home/{{ ansible_user }}/rpmbuild/SPECS/
+      owner: "{{ ansible_user }}"
+  - name: give ownership for everything in home dir to ansible_user
+    become: yes
+    file:
+      path: /home/{{ ansible_user }}
+      owner: "{{ ansible_user }}"
+      recurse: yes
+  - name: build rpm
+    shell: 
+      cmd: rpmbuild -ba /home/{{ ansible_user }}/rpmbuild/SPECS/monitoring-plugins.spec
+  - name: install the built package
+    become: yes
+    yum:
+      name: /home/{{ ansible_user }}/rpmbuild/RPMS/{{ ansible_architecture }}/monitoring-plugins-2.3.3-1.el{{ ansible_distribution_major_version }}.{{ ansible_architecture }}.rpm
+      state: present
+      disable_gpg_check: yes
