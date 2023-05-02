@@ -2,6 +2,32 @@
 - name: Install Packaging VM
   hosts: packaging
   tasks:
+  - name: rpmbuild directories in home
+    become: yes
+    file:
+      path: /home/{{ ansible_user }}/{{ item }}
+      state: absent
+    with_items:
+      - rpmbuild
+  - name: remove known_hosts and ssh keys
+    become: yes
+    file:
+      path: /home/{{ ansible_user }}/{{ item }}
+      state: absent
+    with_items:
+      - .ssh/id_rsa
+      - .ssh/id_rsa.pub
+      - .ssh/know_hosts
+  - name: set ssh config to no strict host key checking
+    become: yes
+    copy:
+      content: |
+        Host *
+          StrictHostKeyChecking no
+      dest: /home/{{ ansible_user }}/.ssh/config
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: 0600
   - name: enable epel
     become: yes
     yum:
@@ -24,7 +50,13 @@
       name: 
       - qstat
       state: present
-    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "9"
+    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "8"
+  - name: yum update
+    become: yes
+    yum:
+      name: 
+      - "*"
+      state: latest
   - name: install qstat on EL8 using the Fedora28 package
     become: yes
     yum:
@@ -51,6 +83,8 @@
       - perl-Module-Build
       - samba-client
       - radcli-devel
+      - mariadb-server
+      - samba
       - uriparser-devel
       - net-snmp
       - net-snmp-utils
@@ -108,3 +142,128 @@
       name: /home/{{ ansible_user }}/rpmbuild/RPMS/{{ ansible_architecture }}/monitoring-plugins-2.3.3-1.el{{ ansible_distribution_major_version }}.{{ ansible_architecture }}.rpm
       state: present
       disable_gpg_check: yes
+  - name: Generate ssh_key in ansible_user home
+    shell: 
+      cmd: ssh-keygen -t rsa -b 4096 -f /home/{{ ansible_user }}/.ssh/id_rsa -q -N ""
+      creates: /home/{{ ansible_user }}/.ssh/id_rsa
+  - name: echo the key into authorized_keys
+    shell: 
+      cmd: cat /home/{{ ansible_user }}/.ssh/id_rsa.pub >> /home/{{ ansible_user }}/.ssh/authorized_keys
+  - name: start mariadb
+    become: yes
+    service:
+      name: mariadb
+      state: started
+  - name: Create SMB share
+    become: yes
+    copy:
+      dest: /etc/samba/smb.conf
+      content: |
+        [testshare]
+        comment = Test Share
+        path = /tmp
+        read only = no
+        valid users = {{ ansible_user }}
+        guest ok = yes
+        browsable = yes
+        create mask = 0755
+        directory mask = 0755
+  - name: restart samba
+    become: yes
+    service:
+      name: smb
+      state: restarted
+  - name: test check_apt by --version and set return code to 0 in case of 1 2 or 3
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_apt --version; if [ $? -eq 3]; then true; fi
+  - name: test check_breeze
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_breeze --version; if [ $? -eq 3]; then true; fi
+  - name: test check_by_ssh
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_by_ssh -H localhost --identity /home/{{ ansible_user }}/.ssh/id_rsa --command 'echo "test"' --timeout 10
+  - name: test check_cluster
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_cluster -s -d 0,0,0,0 -c @3:5 -w @1:3
+  - name: test check_curl
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_curl -H netways.de
+  - name: test check_dbi
+    shell: 
+      cmd: sudo /usr/lib64/nagios/plugins/check_dbi -d mysql -H localhost -o username=root -m SERVER_VERSION
+  - name: test check_dhcp
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_dhcp
+  - name: test check_dig
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_dig -H 1.1.1.1 -l netways.de -A "+tcp"
+  - name: test check_disk
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_disk -w 20% -c 10% -p /dev
+  - name: Create smb user, with password and retype password
+    become: yes
+    shell: 
+      cmd: echo -e "{{ ansible_user }}\n{{ ansible_user }}\n{{ ansible_user }}" | smbpasswd -a {{ ansible_user }}
+  - name: test check_disk_smb
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_disk_smb -H localhost -s testshare -w 20% -c 22% -u {{ ansible_user }} -p {{ ansible_user }}
+  - name: test check_dns
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_dns -H netways.de
+  - name: test check_dummy
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_dummy 0 "test"
+  - name: test check_file_age
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_file_age -f /etc/hosts -w 1000000000 -c 201000000000
+  - name: test check_flexlm
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_flexlm --version; if [ $? -eq 3]; then true; fi
+  - name: test check_fping
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_fping -H localhost
+  - name: test check_game
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_game --version; if [ $? -eq 3]; then true; fi
+    when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "9"
+  - name: test check_hpjd
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_hpjd --version; if [ $? -eq 3]; then true; fi
+  - name: test check_http
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_http -H netways.de
+  - name: test check_icmp
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_icmp -H localhost
+  - name: test check_ide_smart
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_ide_smart --version; if [ $? -eq 3]; then true; fi
+  - name: test check_ifoperstatus
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_ifoperstatus --version; if [ $? -eq 3]; then true; fi
+  - name: test check_ifstatus
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_ifstatus --version; if [ $? -eq 3]; then true; fi
+  - name: test check_ircd
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_ircd --version; if [ $? -eq 3]; then true; fi
+  - name: test check_ircd
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_ircd -H irc.libera.chat -w 3000 -c 4000
+  - name: check_load
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_load -w 50,50,50 -c 90,90,90
+  - name: test check_log
+    shell: 
+      cmd: /usr/lib64/nagios/plugins/check_log -F /var/log/dnf.log -O oldlog; !!
+
+  - name: stop samba
+    become: yes
+    service:
+      name: smb
+      state: stopped
+  - name: remove monitoring-plugins
+    become: yes
+    yum:
+      name: monitoring-plugins
+      state: absent
